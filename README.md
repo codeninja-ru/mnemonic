@@ -1,1 +1,3 @@
-# mnemonic
+# Mnemonic
+
+Mnemonic exercises

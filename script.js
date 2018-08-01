@@ -2,7 +2,8 @@
     var testFrame = document.getElementById('testFrame');
 
     function generateWords1(count) {
-        fetch('words1.txt')
+        // http://dict.ruslang.ru/
+        fetch('words2.txt')
             .then(function(resp) {
                 return resp.text();
             })

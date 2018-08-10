@@ -1,51 +1,6 @@
 (function(window) {
     var testFrame = document.getElementById('testFrame');
 
-    function array(elm) {
-        if (Array.isArray(elm)) {
-            return elm;
-        } else {
-            return [elm];
-        }
-    }
-
-    function tag(name, attrs, nodes = []) {
-        var elm = document.createElement(name);
-        for (var prop in attrs) {
-            elm.setAttribute(prop, attrs[prop]);
-        }
-
-        array(nodes).forEach(function(node) {
-            elm.appendChild(node);
-        });
-
-        return elm;
-    }
-
-    function text(str) {
-        return document.createTextNode(str);
-    }
-
-    function div(attrs, nodes = []) {
-        return tag('div', attrs, nodes);
-    }
-
-    function replaceAllChildren(parent, nodes) {
-        // https://stackoverflow.com/questions/3955229/remove-all-child-elements-of-a-dom-node-in-javascript
-        var fc = parent.firstChild;
-
-        while( fc ) {
-            parent.removeChild( fc );
-            fc = parent.firstChild;
-        }
-
-        array(nodes).forEach(function(item) {
-            parent.appendChild(item);
-        });
-
-        return parent;
-    }
-
     var testDb = {
         words1: {
             "count": {
@@ -56,9 +11,37 @@
         }
     };
 
-    function generateWords1(count) {
-        // http://dict.ruslang.ru/
-        fetch('words2.txt')
+    var answerChackerComp = comp(function(attrs) {
+        var props = {
+            answer: variable(""),
+            correctAnswers: variable([])
+        };
+
+        function onSubmitFn() {
+            var val = props.answer.val;
+            var countOfCorrectAnswers = props.correctAnswers.val.length;
+            var nextAnswer = _.chain(attrs.sample.val.split(','))
+                .map(v => v.trim(v))
+                .drop(countOfCorrectAnswers)
+                .head()
+                .value();
+
+            if (nextAnswer && nextAnswer == val) {
+                props.correctAnswers.val = props.correctAnswers.val.concat(nextAnswer);
+            }
+
+            props.answer.val = "";
+
+        }
+
+        return div({'class': 'text-answers'}, [
+            span({'class': 'correct-answers'}, text(props.correctAnswers.apply(v => v.join(', ').trim()))),
+            span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
+        ]);
+    });
+
+    var mnemoTextComp = comp(function(attrs) {
+        var sample = variable(fetch('words2.txt')
             .then(function(resp) {
                 return resp.text();
             })
@@ -69,13 +52,26 @@
                         return val.trim();
                     })
                     .shuffle()
-                    .take(count)
+                    .take(attrs.wordCount)
                     .value();
-                var sample = words.join(', ').trim();
-                replaceAllChildren(testFrame, div({'class': 'text-test', 'data-sample': sample}, text(sample)));
-            });
-    }
+                return words.join(', ').trim();
+            }));
 
-    generateWords1(5);
+        var timeout = variable(new Promise((resolve, reject) => {
+            setTimeout(() => resolve(true), attrs.timeout);
+        }), false);
+
+        return ifElse(
+            timeout, 
+            answerChackerComp({'sample': sample}),
+            div({'class': 'text-test'}, text(sample)), 
+        );
+    });
+
+    var appComp = comp(function(attrs) {
+        return mnemoTextComp({wordCount: 10, timeout: 1000 * 10});
+    });
+
+    hujak(testFrame, appComp());
 
 })(window);

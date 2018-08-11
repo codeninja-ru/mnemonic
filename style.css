@@ -26,3 +26,20 @@ h1 {
   padding-top: 70px;
   font-size: 24px;
 }
+
+/* timerComp */
+.timerComp {
+  text-align: center;
+  margin: 80px auto;
+}
+.progress {
+    transform: rotate(-90deg);
+}
+
+.progress__value {
+    fill: none;
+}
+
+.progress__value {
+    stroke: #777;
+}

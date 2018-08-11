@@ -31,13 +31,48 @@
             }
 
             props.answer.val = "";
-
         }
 
         return div({'class': 'text-answers'}, [
             span({'class': 'correct-answers'}, text(props.correctAnswers.apply(v => v.join(', ').trim()))),
             span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
         ]);
+    });
+
+    var timerComp = comp(function(attrs) {
+        var elm = div({class: 'timerComp'}, `
+        <svg class="progress" width="40" height="40" viewBox="0 0 80 80">
+        <circle class="progress__value" cx="40" cy="40" r="34" stroke-width="12" />
+        </svg>
+        `);
+
+        var progressValue = elm.querySelector('.progress__value');
+
+        var RADIUS = 54;
+        var CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+        function progress(value) {
+            var progress = value / 100;
+            var dashoffset = CIRCUMFERENCE * (1 - progress);
+            
+            progressValue.style.strokeDashoffset = dashoffset;
+        }
+
+        progressValue.style.strokeDasharray = CIRCUMFERENCE;
+
+        var pr = 0;
+        progress(pr);
+
+        var stepInt = attrs.timeout/100;
+        var stop = setInterval(function() {
+            progress(pr++);
+            if (pr >= 100) {
+                clearInterval(stop);
+                elm.removeChild(elm.children[0]);
+            }
+        }, stepInt);
+
+        return elm;
     });
 
     var mnemoTextComp = comp(function(attrs) {
@@ -61,10 +96,14 @@
             setTimeout(() => resolve(true), attrs.timeout);
         }), false);
 
+
         return ifElse(
             timeout, 
             answerChackerComp({'sample': sample}),
-            div({'class': 'text-test'}, text(sample)), 
+            lazyDiv({}, [
+                div({'class': 'text-test'}, text(sample)),
+                timerComp({timeout: attrs.timeout})
+            ])
         );
     });
 

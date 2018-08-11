@@ -19,8 +19,9 @@ function replaceAllChildren(parent, nodes) {
         fc = parent.firstChild;
     }
 
+
     array(nodes).forEach(function(item) {
-        parent.appendChild(item);
+        parent.appendChild(unwrap(item));
     });
 
     return parent;
@@ -63,6 +64,32 @@ function isVar(val) {
     return val instanceof _Variable;
 }
 
+function lazy(fn) {
+    var me = this;
+    return function() {
+        var args = arguments;
+        return function() {
+            return fn.apply(me, args);
+        };
+    };
+}
+
+function unwrap(node) {
+    if (typeof node == 'function') {
+        return unwrap(node());
+    } else {
+        return node;
+    }
+}
+
+/**
+ * Creates a tag
+ * @param {string} name - name of the tag (div, span, etc)
+ * @param {Object} attrs - a list attributes of the tag
+ * @param {Array|string} nodes - a list of child components or one component or a list of Element objects or plain html
+ *
+ * @return {Element}
+ */
 function tag(name, attrs, nodes = []) {
     var elm = document.createElement(name);
     for (let prop in attrs) {
@@ -91,13 +118,29 @@ function tag(name, attrs, nodes = []) {
         }
     }
 
-    array(nodes).forEach(function(node) {
-        elm.appendChild(node);
-    });
+    if (typeof nodes == 'string') {
+        elm.innerHTML = nodes;
+    } else {
+        array(nodes).forEach(function(node) {
+            elm.appendChild(unwrap(node));
+        });
+    }
 
     return elm;
 }
 
+function lazyText(str) {
+    return lazy(text)(str);
+}
+
+/**
+ * Creates a text Node
+ * @param {string|Variable} str - text for the text node
+ * @return text node
+ *
+ * @example
+ * text("Hello World")
+ */
 function text(str) {
     if (isVar(str)) {
         var elm = document.createTextNode(str.val);
@@ -115,6 +158,10 @@ function div(attrs, nodes = []) {
     return tag('div', attrs, nodes);
 }
 
+function lazyDiv(attrs, nodes = []) {
+    return lazy(div)(attrs, nodes);
+}
+
 function span(attrs, nodes = []) {
     return tag('span', attrs, nodes);
 }
@@ -127,8 +174,24 @@ function form(attrs, nodes = []) {
     return tag('form', attrs, nodes);
 }
 
+/**
+ * Creates Hujak Component
+ * @param {function} func - Component function
+ * @return {function} Hujak component
+ *
+ * @example
+ * var helloWorldComp = comp(function(attrs) {
+ *  return text("Hujak! Hujak!");
+ * });
+ */
 function comp(func) {
-    return func;
+    return function() {
+        var me = this;
+        var args = arguments;
+        return function() {
+            return func.apply(me, args);
+        };
+    };
 }
 
 function ifElse(cond, thenElm, elseElm) {
@@ -141,7 +204,14 @@ function ifElse(cond, thenElm, elseElm) {
     }
 }
 
-
-function hujak(parent, nodes) {
-    return replaceAllChildren(parent, nodes);
+/**
+ * Attaches the component to DOM
+ * Init your application with this
+ * @param {Element} parent - container for your app 
+ * @param {Component} comp - Nujak component
+ *
+ * @example hujak(document.getElementById('appId'), helloWorldComp());
+ */
+function hujak(parent, comp) {
+    return replaceAllChildren(parent, comp);
 }

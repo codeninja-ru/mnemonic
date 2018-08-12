@@ -13,8 +13,8 @@
 
     var answerChackerComp = comp(function(attrs) {
         var props = {
-            answer: variable(""),
-            correctAnswers: variable([])
+            answer: h(""),
+            correctAnswers: h([])
         };
 
         function onSubmitFn() {
@@ -43,7 +43,7 @@
         var RADIUS = 34;
         var CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-        var dashoffset = variable(function(update) {
+        var dashoffset = h(function(update) {
             function progress(value) {
                 var progress = value / 100;
                 var dashoffset = CIRCUMFERENCE * (1 - progress);
@@ -66,7 +66,7 @@
     });
 
     var mnemoTextComp = comp(function(attrs) {
-        var sample = variable(fetch('words2.txt')
+        var sample = h(fetch('words2.txt')
             .then(function(resp) {
                 return resp.text();
             })
@@ -82,7 +82,7 @@
                 return words.join(', ').trim();
             }));
 
-        var timeout = variable((update) => {
+        var timeout = h((update) => {
             setTimeout(() => update(true), attrs.timeout);
         }, false);
             

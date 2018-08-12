@@ -27,7 +27,7 @@ function replaceAllChildren(parent, nodes) {
     return parent;
 }
 
-function _Variable(value, initValue) {
+function Variable(value, initValue) {
     var val;
     var listeners = [];
     Object.defineProperty(this, "val", {
@@ -45,7 +45,7 @@ function _Variable(value, initValue) {
         listeners.push(fn);
     };
     this.apply = (fn) => {
-        var newVr = variable(fn(this.val));
+        var newVr = h(fn(this.val));
         this.watch((v) => newVr.val = fn(this.val));
         return newVr;
     };
@@ -65,28 +65,28 @@ function _Variable(value, initValue) {
 }
 
 /**
- * Creates a variable
+ * Creates a Variable
  * @param {any|function|Promise} 
- * @return {_Variable}
+ * @return {Variable}
  *
  * @example
- * var v = variable(10);
+ * var v = h(10);
  * v.val = 11
  *
  * @example
- * var ajax = variable(fetch("http://test/some.json"))
+ * var ajax = h(fetch("http://test/some.json"))
  *
  * @example
- * var timeout = variable(funciton(update) {
+ * var timeout = h(funciton(update) {
  *  setTimeout(function() {
  *      update(true);
  *  }
  * }, false);
  */
-function variable(v, initValue) { return new _Variable(v, initValue); }
+function h(v, initValue) { return new Variable(v, initValue); }
 
 function isVar(val) {
-    return val instanceof _Variable;
+    return val instanceof Variable;
 }
 
 function lazy(fn) {

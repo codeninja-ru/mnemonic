@@ -50,14 +50,39 @@ function _Variable(value, initValue) {
         return newVr;
     };
 
-    if (isPromise(value)) {
+    if (initValue) {
         val = initValue;
+    }
+
+    if (isPromise(value)) {
         value.then((r) => this.val = r);
+    } else if (typeof value == 'function') {
+        //TODO vmayorov: what if the return value will be an initValue?
+        value((newValue) => this.val = newValue);
     } else {
         val = value;
     }
 }
 
+/**
+ * Creates a variable
+ * @param {any|function|Promise} 
+ * @return {_Variable}
+ *
+ * @example
+ * var v = variable(10);
+ * v.val = 11
+ *
+ * @example
+ * var ajax = variable(fetch("http://test/some.json"))
+ *
+ * @example
+ * var timeout = variable(funciton(update) {
+ *  setTimeout(function() {
+ *      update(true);
+ *  }
+ * }, false);
+ */
 function variable(v, initValue) { return new _Variable(v, initValue); }
 
 function isVar(val) {
@@ -82,16 +107,7 @@ function unwrap(node) {
     }
 }
 
-/**
- * Creates a tag
- * @param {string} name - name of the tag (div, span, etc)
- * @param {Object} attrs - a list attributes of the tag
- * @param {Array|string} nodes - a list of child components or one component or a list of Element objects or plain html
- *
- * @return {Element}
- */
-function tag(name, attrs, nodes = []) {
-    var elm = document.createElement(name);
+function _tag(elm, attrs, nodes) {
     for (let prop in attrs) {
         let val = attrs[prop];
         if (prop == 'onsubmit') {
@@ -107,6 +123,16 @@ function tag(name, attrs, nodes = []) {
                     val.val = event.target.value;
                 });
                 val.watch((v) => elm.value = v);
+            }
+        } else if (prop == 'style' && typeof val == 'object') {
+            for (let k in val) {
+                let v = val[k];
+                if (isVar(v)) {
+                    elm.style[k] = v.val;
+                    v.watch((newVal) => elm.style[k] = newVal);
+                } else {
+                    elm.style[k] = v;
+                }
             }
         } else {
             if (isVar(val)) {
@@ -127,6 +153,36 @@ function tag(name, attrs, nodes = []) {
     }
 
     return elm;
+}
+
+/**
+ * Creates a tag
+ * @param {string} name - name of the tag (div, span, etc)
+ * @param {Object} attrs - a list attributes of the tag
+ * @param {Array|string} nodes - a list of child components or one component or a list of Element objects or plain html
+ *
+ * @return {Element}
+ */
+function tag(name, attrs, nodes = []) {
+    var elm = document.createElement(name);
+    return _tag(elm, attrs, nodes);
+}
+
+/**
+ * Create a tag in SVG name space
+ * @param {string} name - name of the tag (div, span, etc)
+ * @param {Object} attrs - a list attributes of the tag
+ * @param {Array|string} nodes - a list of child components or one component or a list of Element objects or plain html
+ *
+ * @return {Element}
+ *
+ * @example
+ * svg({class: 'progress', width: 40, height: 40, "viewBox": "0 0 80 80"}, svg('circle', {class: "progress__value", cx: 40, cy: 40, r: 34, "stroke-width": 12})));
+ */
+function svg(name, attrs, nodes = []) {
+    //TODO vmayorov: create tagNS
+    var elm = document.createElementNS('http://www.w3.org/2000/svg', name);
+    return _tag(elm, attrs, nodes);
 }
 
 function lazyText(str) {

@@ -10,6 +10,7 @@ function array(elm) {
     }
 }
 
+
 function replaceAllChildren(parent, nodes) {
     // https://stackoverflow.com/questions/3955229/remove-all-child-elements-of-a-dom-node-in-javascript
     var fc = parent.firstChild;
@@ -21,12 +22,19 @@ function replaceAllChildren(parent, nodes) {
 
 
     array(nodes).forEach(function(item) {
-        parent.appendChild(unwrap(item));
+        if (item != undefined) {
+            parent.appendChild(unwrap(item));
+        }
     });
 
     return parent;
 }
 
+/**
+ * @class Variable
+ * the class for variables, init it with h
+ * @see h
+ */
 function Variable(value, initValue) {
     var val;
     var listeners = [];
@@ -62,6 +70,27 @@ function Variable(value, initValue) {
     } else {
         val = value;
     }
+}
+
+/**
+ * @class Component
+ * @see comp
+ * @example
+ * class HelloWorldComponent extends Component {
+ * }
+ *
+ * var helloWorldComp = new HelloWorldComponent({say: 'Hello'});
+ * var parent = document.body;
+ * parent.appendChild(helloWorldComp(parent));
+ *
+ * @todo
+ */
+function Component(func) {
+    var comp = func;
+    var me = this;
+
+    this.wake = function(parent) {
+    };
 }
 
 /**
@@ -222,6 +251,10 @@ function span(attrs, nodes = []) {
     return tag('span', attrs, nodes);
 }
 
+function a(src, attrs = {}, nodes = []) {
+    return tag('a', Object({}, {'src': src}, attrs), nodes);
+}
+
 function input(attrs, nodes = []) {
     return tag('input', attrs, nodes);
 }
@@ -250,9 +283,9 @@ function comp(func) {
     };
 }
 
-function ifElse(cond, thenElm, elseElm) {
+function when(cond, thenElm, elseElm) {
     if (isVar(cond)) {
-        var wrap = div({}, cond.val ? thenElm : elseElm);
+        var wrap = span({}, cond.val ? thenElm : elseElm);
         cond.watch((v) => replaceAllChildren(wrap, v ? thenElm : elseElm));
         return wrap;
     } else {
@@ -264,7 +297,7 @@ function ifElse(cond, thenElm, elseElm) {
  * Attaches the component to DOM
  * Init your application with this
  * @param {Element} parent - container for your app 
- * @param {Component} comp - Nujak component
+ * @param {Component|Array<Component>} comp - Nujak component or array of components
  *
  * @example hujak(document.getElementById('appId'), helloWorldComp());
  */

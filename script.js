@@ -14,7 +14,8 @@
     var answerChackerComp = comp(function(attrs) {
         var props = {
             answer: h(""),
-            correctAnswers: h([])
+            correctAnswers: h([]),
+            wrongAnswersCount: h(0),
         };
 
         function onSubmitFn() {
@@ -28,15 +29,44 @@
 
             if (nextAnswer && nextAnswer == val) {
                 props.correctAnswers.val = props.correctAnswers.val.concat(nextAnswer);
+            } else {
+                props.wrongAnswersCount.val++;
             }
 
             props.answer.val = "";
         }
 
+        var unsolved = props.correctAnswers.apply((answers) => {
+            var countOfCorrectAnswers = props.correctAnswers.val.length;
+            var str = _.chain(attrs.sample.val.split(','))
+                .map(v => v.trim(v))
+                .drop(countOfCorrectAnswers)
+                .value()
+                .join(', ')
+                .trim();
+
+            return _.isEmpty(str) ? "" : ', ' + str;
+        });
+
+        var isNotTestFinished = props.wrongAnswersCount.apply(count => count < attrs.maxWrongAnswers);
+
         return div({'class': 'text-answers'}, [
-            span({'class': 'correct-answers'}, text(props.correctAnswers.apply(v => v.join(', ').trim()))),
-            span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
+            span({'class': 'correct-answers'}, [
+                text(props.correctAnswers.apply(v => v.join(', ').trim())),
+                when(isNotTestFinished, undefined, span({'class': 'unsolved'}, text(unsolved)))
+            ]),
+            when(
+                isNotTestFinished,
+                span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
+            ),
+            div({class: 'wrong-answers-count'}, text(props.wrongAnswersCount.apply(count => attrs.maxWrongAnswers - count)))
         ]);
+    });
+
+    var settingsCop = comp(function(attrs) {
+        const elm = a('#', {class: 'settingsBtn'}, span({}));
+        
+        return elm;
     });
 
     var timerComp = comp(function(attrs) {
@@ -65,6 +95,7 @@
         return div({class: 'timerComp'}, svg('svg', {class: 'progress', width: 40, height: 40, "viewBox": "0 0 80 80"}, svg('circle', {class: "progress__value", cx: 40, cy: 40, r: RADIUS, "stroke-width": 12, style: {strokeDasharray: CIRCUMFERENCE, strokeDashoffset: dashoffset}})));
     });
 
+
     var mnemoTextComp = comp(function(attrs) {
         var sample = h(fetch('words2.txt')
             .then(function(resp) {
@@ -86,9 +117,9 @@
             setTimeout(() => update(true), attrs.timeout);
         }, false);
             
-        return ifElse(
+        return when(
             timeout, 
-            answerChackerComp({'sample': sample}),
+            answerChackerComp({'sample': sample, 'maxWrongAnswers': 3}),
             lazyDiv({}, [
                 div({'class': 'text-test'}, text(sample)),
                 timerComp({timeout: attrs.timeout})
@@ -97,7 +128,7 @@
     });
 
     var appComp = comp(function(attrs) {
-        return mnemoTextComp({wordCount: 10, timeout: 1000 * 10});
+        return mnemoTextComp({wordCount: 10, timeout: 7000 * 10});
     });
 
     hujak(testFrame, appComp());

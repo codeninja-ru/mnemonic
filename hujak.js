@@ -52,10 +52,40 @@ function Variable(value, initValue) {
     this.watch = function(fn) {
         listeners.push(fn);
     };
+    /**
+     * Produces a new Variable by apply the function to it
+     * @param {Function(x)} fn - a simple functions
+     * @return {Variable}
+     *
+     * @example
+     * var name = h("John");
+     * var sayHallo = name.apply(n => "Hello, " + v); // Hello, John
+     */
     this.apply = (fn) => {
         var newVr = h(fn(this.val));
         this.watch((v) => newVr.val = fn(this.val));
         return newVr;
+    };
+    /**
+     * Combines two Variable's into one
+     * @param {Variable|any} v - the second variable, if it's not a Variable, this function is equivalent of apply @see apply
+     * @param {Function(v1, v2)} fn - function takes two arguments and produces one
+     * @return {Variable}
+     *
+     * @example
+     * var val1 = h(1);
+     * var val2 = h(2);
+     * var sum = val1.combine(val2, (v1, v2) => v1 + v2); // 1 + 2 = 3
+     */
+    this.combine = (v, fn) => {
+        if (isVar(v)) {
+            var newVr = h(fn(this.val, v.val));
+            this.watch(v1 => newVr.val = fn(v1, v.val));
+            v.watch(v2 => newVr.val = fn(this.val, v2));
+            return newVr;
+        } else {
+            return this.apply(v1 => fn(v1, v));
+        }
     };
 
     if (initValue) {
@@ -70,6 +100,34 @@ function Variable(value, initValue) {
     } else {
         val = value;
     }
+}
+
+/**
+ * @param {Variable} b - a Variable containing boolean value
+ * @return {BoolVariable}
+ */
+function not(b) {
+    return b.apply(v => !v);
+}
+
+/**
+ * && operation on b1 and b2
+ * @param {Variable} b1
+ * @param {Variable} b2
+ * @return {Variable}
+ */
+function and(b1, b2) {
+    return b1.combine(b2, (v1, v2) => v1 && v2);
+}
+
+/**
+ * || operation on b1 and b2
+ * @param {Variable} b1
+ * @param {Variable} b2
+ * @return {Variable}
+ */
+function or(b1, b2) {
+    return b1.combine(b2, (v1, v2) => v1 || v2);
 }
 
 /**
@@ -283,6 +341,21 @@ function comp(func) {
     };
 }
 
+/**
+ * if else component
+ * @param {Variable} cond - condition Variable
+ * @param {Component|Element|lazy} thenElm - element and condition that's rendered when the condition is true
+ * @param {Component|Element|lazy} elseElm - element and condition that's rendered when the condition is false
+ *
+ * @example
+ * var data = h(fetch('http://test/data.json');
+ * var isDataLoaded = h.apply(d => d != undefined);
+ * when(
+ *      idDataLoaded,
+ *      [div({}, text('Wow! data =')), text(data)],
+ *      text('Loading...')
+ * );
+ */
 function when(cond, thenElm, elseElm) {
     if (isVar(cond)) {
         var wrap = span({}, cond.val ? thenElm : elseElm);

@@ -21,6 +21,7 @@
         function onSubmitFn() {
             var val = props.answer.val;
             var countOfCorrectAnswers = props.correctAnswers.val.length;
+            // sample must be a constant
             var nextAnswer = _.chain(attrs.sample.val.split(','))
                 .map(v => v.trim(v))
                 .drop(countOfCorrectAnswers)
@@ -30,6 +31,7 @@
             if (nextAnswer && nextAnswer == val) {
                 props.correctAnswers.val = props.correctAnswers.val.concat(nextAnswer);
             } else {
+                console.log(nextAnswer);
                 props.wrongAnswersCount.val++;
             }
 
@@ -48,18 +50,24 @@
             return _.isEmpty(str) ? "" : ', ' + str;
         });
 
-        var isNotTestFinished = props.wrongAnswersCount.apply(count => count < attrs.maxWrongAnswers);
+        var isTestFailed = props.wrongAnswersCount.apply(count => count >= attrs.maxWrongAnswers);
+        var isNotTestFailed = not(isTestFailed);
+        var isTestPassed = props.correctAnswers.apply((answers) => {
+            return answers.length == attrs.sample.val.split(',').length;
+        });
 
         return div({'class': 'text-answers'}, [
             span({'class': 'correct-answers'}, [
                 text(props.correctAnswers.apply(v => v.join(', ').trim())),
-                when(isNotTestFinished, undefined, span({'class': 'unsolved'}, text(unsolved)))
+                when(isTestFailed, span({'class': 'unsolved'}, text(unsolved)))
             ]),
             when(
-                isNotTestFinished,
+                isNotTestFailed,
                 span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
             ),
-            div({class: 'wrong-answers-count'}, text(props.wrongAnswersCount.apply(count => attrs.maxWrongAnswers - count)))
+            when(and(not(isTestPassed), not(isTestFailed)), div({class: 'wrong-answers-count'}, text(props.wrongAnswersCount.apply(count => attrs.maxWrongAnswers - count)))),
+            when(isTestPassed, div({class: 'final'}, text('You did it!'))),
+            when(and(not(isTestPassed), isTestFailed), div({class: 'final'}, text('You can do better!'))),
         ]);
     });
 

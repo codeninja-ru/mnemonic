@@ -1,5 +1,5 @@
 (function(window) {
-    var testFrame = document.getElementById('testFrame');
+    var url = hujakUrl();
 
     var testDb = {
         words1: {
@@ -181,6 +181,19 @@
             wordCount: h(10),
             timeout: h(7000 * 10)
         };
+
+
+        var states = hujakStates({
+            'settings': state(url.is('settings'), function() {
+                //TODO vmayorov: show settings
+            }),
+            'text': state(and(url.is('text'), url.is('/')), function() {
+                return [
+                    tag('h1', {}, text('Can you rememeber?')),
+                    mnemoTextComp(settings),
+                ];
+            })
+        });
 
         hujakAppend(document.body, settingsComp(settings));
 

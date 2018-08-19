@@ -1,3 +1,5 @@
+//TODO vmayorov: read-only Variables
+
 function isPromise(obj) {
     return obj instanceof Promise;
 }
@@ -88,6 +90,23 @@ function Variable(value, initValue) {
         } else {
             return this.apply(v1 => fn(v1, v));
         }
+    };
+
+    /**
+     * Produces a new Variable that compares the underlying Variable with the value
+     * @param {any} value - a value to compare with
+     * @return {RVariable} returns read-only Variable
+     * @todo read-only
+     *
+     * @example
+     * var name = h('John');
+     * var isJohn = name.is('John');
+     */
+    this.is = (value) => {
+        var newVr = h(this.val == value);
+        this.watch((v) => {
+            newvr.val == this.val == value;
+        });
     };
 
     if (initValue) {

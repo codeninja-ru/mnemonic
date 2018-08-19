@@ -18,6 +18,41 @@
             wrongAnswersCount: h(0),
         };
 
+        function levenshteinDistance(a, b) {
+            if(a.length == 0) return b.length; 
+            if(b.length == 0) return a.length; 
+
+            var matrix = [];
+
+            // increment along the first column of each row
+            var i;
+            for(i = 0; i <= b.length; i++){
+                matrix[i] = [i];
+            }
+
+            // increment each column in the first row
+            var j;
+            for(j = 0; j <= a.length; j++){
+                matrix[0][j] = j;
+            }
+
+            // Fill in the rest of the matrix
+            for(i = 1; i <= b.length; i++){
+                for(j = 1; j <= a.length; j++){
+                    if(b.charAt(i-1) == a.charAt(j-1)){
+                        matrix[i][j] = matrix[i-1][j-1];
+                    } else {
+                        matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, // substitution
+                            Math.min(matrix[i][j-1] + 1, // insertion
+                                matrix[i-1][j] + 1)); // deletion
+                    }
+                }
+            }
+
+            return matrix[b.length][a.length];
+        }
+  
+  
         function onSubmitFn() {
             var val = props.answer.val;
             var countOfCorrectAnswers = props.correctAnswers.val.length;
@@ -28,7 +63,7 @@
                 .head()
                 .value();
 
-            if (nextAnswer && nextAnswer == val) {
+            if (nextAnswer && levenshteinDistance(nextAnswer, val) <= 1) {
                 props.correctAnswers.val = props.correctAnswers.val.concat(nextAnswer);
             } else {
                 console.log(nextAnswer);
@@ -51,7 +86,6 @@
         });
 
         var isTestFailed = props.wrongAnswersCount.apply(count => count >= attrs.maxWrongAnswers);
-        var isNotTestFailed = not(isTestFailed);
         var isTestPassed = props.correctAnswers.apply((answers) => {
             return answers.length == attrs.sample.val.split(',').length;
         });
@@ -62,7 +96,7 @@
                 when(isTestFailed, span({'class': 'unsolved'}, text(unsolved)))
             ]),
             when(
-                isNotTestFailed,
+                and(not(isTestFailed), not(isTestPassed)),
                 span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
             ),
             when(and(not(isTestPassed), not(isTestFailed)), div({class: 'wrong-answers-count'}, text(props.wrongAnswersCount.apply(count => attrs.maxWrongAnswers - count)))),

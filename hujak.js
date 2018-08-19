@@ -10,6 +10,15 @@ function array(elm) {
     }
 }
 
+function appendNodes(parent, nodes) {
+    array(nodes).forEach(function(item) {
+        if (item != undefined) {
+            array(unwrap(item)).forEach(v => parent.appendChild(unwrap(v)));
+        }
+    });
+
+    return parent;
+}
 
 function replaceAllChildren(parent, nodes) {
     // https://stackoverflow.com/questions/3955229/remove-all-child-elements-of-a-dom-node-in-javascript
@@ -20,14 +29,7 @@ function replaceAllChildren(parent, nodes) {
         fc = parent.firstChild;
     }
 
-
-    array(nodes).forEach(function(item) {
-        if (item != undefined) {
-            parent.appendChild(unwrap(item));
-        }
-    });
-
-    return parent;
+    return appendNodes(parent, nodes);
 }
 
 /**
@@ -197,8 +199,13 @@ function unwrap(node) {
 function _tag(elm, attrs, nodes) {
     for (let prop in attrs) {
         let val = attrs[prop];
-        if (prop == 'onsubmit') {
+        if (prop == 'submit') {
             elm.addEventListener("submit", function(e) {
+                event.preventDefault();
+                val(e);
+            });
+        } else if (prop == 'click') {
+            elm.addEventListener("click", function(e) {
                 event.preventDefault();
                 val(e);
             });
@@ -369,11 +376,23 @@ function when(cond, thenElm, elseElm) {
 /**
  * Attaches the component to DOM
  * Init your application with this
- * @param {Element} parent - container for your app 
+ * @param {Element|Array} parent - container for your app 
  * @param {Component|Array<Component>} comp - Nujak component or array of components
  *
  * @example hujak(document.getElementById('appId'), helloWorldComp());
  */
 function hujak(parent, comp) {
     return replaceAllChildren(parent, comp);
+}
+
+/**
+ * Does the same as @see hujuak but instead of relecing of all the elements inseide the parent, it appends
+ * Useful when you want append components to the end of document.body
+ * @param {Element|Array} parent - container for your app 
+ * @param {Component|Array<Component>} comp - Nujak component or array of components
+ *
+ * @example hujakAppend(document.body, hiddenModelWindowComp());
+ */
+function hujakAppend(parent, comp) {
+    return appendNodes(parent, comp);
 }

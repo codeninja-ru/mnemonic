@@ -78,3 +78,15 @@ input[type="text"]:focus {
   font-size: 24px;
   color: #eee;
 }
+
+/* settingsComp */
+.settings-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 10px;
+}
+
+.settings-button span {
+  cursor: pointer;
+}

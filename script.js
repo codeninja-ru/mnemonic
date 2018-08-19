@@ -11,6 +11,13 @@
         }
     };
 
+    var settingsComp = comp(function(attrs) {
+        function onSettingsButtonClick() {
+            alert(1);
+        }
+        return div({class: 'settings-button'}, span({'click': onSettingsButtonClick}, tag('i', {class: 'fas fa-cog'})));
+    });
+
     var answerChackerComp = comp(function(attrs) {
         var props = {
             answer: h(""),
@@ -97,7 +104,7 @@
             ]),
             when(
                 and(not(isTestFailed), not(isTestPassed)),
-                span({'class': 'attempts'}, form({'onsubmit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
+                span({'class': 'attempts'}, form({'submit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
             ),
             when(and(not(isTestPassed), not(isTestFailed)), div({class: 'wrong-answers-count'}, text(props.wrongAnswersCount.apply(count => attrs.maxWrongAnswers - count)))),
             when(isTestPassed, div({class: 'final'}, text('You did it!'))),
@@ -150,13 +157,13 @@
                         return val.trim();
                     })
                     .shuffle()
-                    .take(attrs.wordCount)
+                    .take(attrs.wordCount.val)
                     .value();
                 return words.join(', ').trim();
             }));
 
         var timeout = h((update) => {
-            setTimeout(() => update(true), attrs.timeout);
+            setTimeout(() => update(true), attrs.timeout.val);
         }, false);
             
         return when(
@@ -164,15 +171,25 @@
             answerChackerComp({'sample': sample, 'maxWrongAnswers': 3}),
             lazyDiv({}, [
                 div({'class': 'text-test'}, text(sample)),
-                timerComp({timeout: attrs.timeout})
+                timerComp({timeout: attrs.timeout.val})
             ])
         );
     });
 
     var appComp = comp(function(attrs) {
-        return mnemoTextComp({wordCount: 10, timeout: 7000 * 10});
+        var settings = {
+            wordCount: h(10),
+            timeout: h(7000 * 10)
+        };
+
+        hujakAppend(document.body, settingsComp(settings));
+
+        return [
+            tag('h1', {}, text('Can you rememeber?')),
+            mnemoTextComp(settings),
+        ];
     });
 
-    hujak(testFrame, appComp());
+    hujak(document.getElementById('appComp'), appComp());
 
 })(window);

@@ -70,7 +70,7 @@
                 .head()
                 .value();
 
-            if (nextAnswer && levenshteinDistance(nextAnswer, val) <= 1) {
+            if (nextAnswer && levenshteinDistance(nextAnswer, val) <= 2) {
                 props.correctAnswers.val = props.correctAnswers.val.concat(nextAnswer);
             } else {
                 console.log(nextAnswer);
@@ -104,7 +104,9 @@
             ]),
             when(
                 and(not(isTestFailed), not(isTestPassed)),
-                span({'class': 'attempts'}, form({'submit': onSubmitFn}, input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})))
+                span({'class': 'attempts'}, form({'submit': onSubmitFn}, 
+                    el(input({'type': 'text', 'name': 'answer', 'bind': props.answer, 'autocomplete': 'off'})).up(elm => elm.focus())
+                ))
             ),
             when(and(not(isTestPassed), not(isTestFailed)), div({class: 'wrong-answers-count'}, text(props.wrongAnswersCount.apply(count => attrs.maxWrongAnswers - count)))),
             when(isTestPassed, div({class: 'final'}, text('You did it!'))),

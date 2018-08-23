@@ -3,7 +3,7 @@
  */
 
 //TODO vmayorov: should return read-only variable
-function hujakUrl() {
+var hujakUrl = (function() {
     function hash() {
         return location.hash.slice(1) || '/';
     }
@@ -15,5 +15,7 @@ function hujakUrl() {
         url.val = hash();
     });
 
-    return url;
-}
+    return function() {
+        return url;
+    };
+})(window);

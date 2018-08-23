@@ -16,11 +16,18 @@
  * return states(states).default('loading');
  */
 
+var states = [
+    {
+        cond: h(1),
+        action: function() {
+        }
+    }
+];
+
 //TODO vmayorov: implement
-function hujakStates() {
-    
+function hujakStates(states) {
 }
 
 function state() {
-    
+
 }

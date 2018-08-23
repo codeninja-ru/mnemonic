@@ -1,4 +1,5 @@
 //TODO vmayorov: read-only Variables
+//TODO vmayorov: disposing of variables
 
 function isPromise(obj) {
     return obj instanceof Promise;
@@ -12,22 +13,57 @@ function array(elm) {
     }
 }
 
+function addDisposer(elm, disposer) {
+    if (elm instanceof Node) {
+        if (Array.isArray(elm.hujakDisposers)) {
+            elm.hujakDisposers.push(disposer);
+        } else {
+            elm.hujakDisposers = array(disposer);
+        }
+    }
+}
+
 function appendNodes(parent, nodes) {
     array(nodes).forEach(function(item) {
         if (item != undefined) {
-            array(unwrap(item)).forEach(v => parent.appendChild(unwrap(v)));
+            array(unwrap(item)).forEach((v) => {
+                var elm = unwrap(v);
+                if (elm instanceof Component) {
+                    var elements = unwrap(elm.elements());
+                    parent.appendChild(elements)
+                    setTimeout(function() {
+                        elm.up(elements);
+                    }, 0);
+                } else {
+                    parent.appendChild(elm)
+                }
+            });
         }
     });
 
     return parent;
 }
 
+function removeNode(parent, nodeToRemove) {
+    // here we clear all our hooks and hujaks
+    function disposeOf(node) {
+        if (node.hujakDisposers) {
+            node.hujakDisposers.forEach(fn => fn());
+        }
+        node.childNodes.forEach(disposeOf);
+    }
+    setTimeout(function() {
+        disposeOf(nodeToRemove);
+    }, 0);
+    parent.removeChild(nodeToRemove);
+}
+
 function replaceAllChildren(parent, nodes) {
     // https://stackoverflow.com/questions/3955229/remove-all-child-elements-of-a-dom-node-in-javascript
     var fc = parent.firstChild;
 
-    while( fc ) {
-        parent.removeChild( fc );
+    while (fc) {
+        removeNode(parent, fc);
         fc = parent.firstChild;
     }
 
@@ -53,8 +89,19 @@ function Variable(value, initValue) {
             }
         }
     });
+    /**
+     * Watchs the changes of the value
+     * @param {Function(v)} fn - callback function where the argument is a new value
+     * @return {Function} function that stops the watching
+     */
     this.watch = function(fn) {
         listeners.push(fn);
+        return function() {
+            var idx = listeners.indexOf(fn);
+            if (idx != -1) {
+                delete listeners[idx];
+            }
+        };
     };
     /**
      * Produces a new Variable by apply the function to it
@@ -105,8 +152,9 @@ function Variable(value, initValue) {
     this.is = (value) => {
         var newVr = h(this.val == value);
         this.watch((v) => {
-            newvr.val == this.val == value;
+            newVr.val == this.val == value;
         });
+        return newVr;
     };
 
     if (initValue) {
@@ -164,12 +212,62 @@ function or(b1, b2) {
  *
  * @todo
  */
-function Component(func) {
-    var comp = func;
-    var me = this;
-
-    this.wake = function(parent) {
+function Component(elements, upFn, downFn) {
+    var _elm;
+    this.up = function() {
+        if (typeof upFn == 'function') {
+            //TODO vmayorov: refactor
+            upFn.apply(this, arguments);
+        }
     };
+    this.down = function() {
+        if (typeof downFn == 'function') {
+            downFn.apply(this, arguments);
+        }
+    };
+    this.elements = function() {
+        return elements;
+    };
+}
+
+/**
+ * a builder for a Component object
+ * @class element
+ * @param {any} elm - element, usually a tag element or component
+ * @param {Function} upFn - a callback that is called when the elm is append to the DOM
+ * @param {Function} downFn - a callback that is called when the elm is removed from the DOM
+ *
+ * @example 
+ * var helloWorld = comp(function(attrs) {
+ *  return el(div({class: 'test-class'}, [
+ *      text('Name'),
+ *      el(input({type: 'text'})).up(function(elm) { this.focus(); // set focus on the input }).down(function() { alert('Good bye'); })
+ *  ])).down(function() {
+ *      // free your resurces here
+ *  });
+ * };
+ */
+//TODO vmayorov: rename
+function element(elm, upFn, downFn) {
+    this.up = function(fn) {
+        return new element(elm, fn, downFn);
+
+    };
+    this.down = function(fn) {
+        return new element(elm, upFn, fn);
+    };
+    this.build = function() {
+        return new Component(elm, upFn, downFn);
+    };
+}
+
+/**
+ * a helper for element
+ * @see element
+ * @param {Element} elm
+ */
+function el(elm) {
+    return new element(elm);
 }
 
 /**
@@ -210,6 +308,8 @@ function lazy(fn) {
 function unwrap(node) {
     if (typeof node == 'function') {
         return unwrap(node());
+    } else if (node instanceof element) {
+        return node.build();
     } else {
         return node;
     }
@@ -235,14 +335,14 @@ function _tag(elm, attrs, nodes) {
                 elm.addEventListener("change", function(event) {
                     val.val = event.target.value;
                 });
-                val.watch((v) => elm.value = v);
+                addDisposer(elm, val.watch((v) => elm.value = v));
             }
         } else if (prop == 'style' && typeof val == 'object') {
             for (let k in val) {
                 let v = val[k];
                 if (isVar(v)) {
                     elm.style[k] = v.val;
-                    v.watch((newVal) => elm.style[k] = newVal);
+                    addDisposer(v.watch((newVal) => elm.style[k] = newVal));
                 } else {
                     elm.style[k] = v;
                 }
@@ -250,7 +350,7 @@ function _tag(elm, attrs, nodes) {
         } else {
             if (isVar(val)) {
                 elm.setAttribute(prop, val.val);
-                val.watch((v) => elm.setAttribute(prop, v))
+                addDisposer(elm, val.watch((v) => elm.setAttribute(prop, v)));
             } else {
                 elm.setAttribute(prop, val);
             }
@@ -260,9 +360,7 @@ function _tag(elm, attrs, nodes) {
     if (typeof nodes == 'string') {
         elm.innerHTML = nodes;
     } else {
-        array(nodes).forEach(function(node) {
-            elm.appendChild(unwrap(node));
-        });
+        appendNodes(elm, nodes);
     }
 
     return elm;
@@ -313,9 +411,9 @@ function lazyText(str) {
 function text(str) {
     if (isVar(str)) {
         var elm = document.createTextNode(str.val);
-        str.watch((val) => {
+        addDisposer(elm, str.watch((val) => {
             elm.textContent = val;
-        });
+        }));
         return elm;
     } else {
         return document.createTextNode(str);
@@ -385,7 +483,7 @@ function comp(func) {
 function when(cond, thenElm, elseElm) {
     if (isVar(cond)) {
         var wrap = span({}, cond.val ? thenElm : elseElm);
-        cond.watch((v) => replaceAllChildren(wrap, v ? thenElm : elseElm));
+        addDisposer(wrap, cond.watch((v) => replaceAllChildren(wrap, v ? thenElm : elseElm)));
         return wrap;
     } else {
         return cond ? thenElm : elseElm;

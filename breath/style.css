@@ -1,0 +1,106 @@
+body, html {
+  background: #efefef;
+  color: #444;
+  font-size: 18px;
+  height: 100%;
+  font-family: 'Open Sans', sans-serif;
+}
+
+h1 {
+  text-align: center;
+}
+
+a, a:hover {
+  color: #666;
+}
+
+.valign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.valign .box {
+  width: 50%;
+  flex: none;
+}
+
+.text-test {
+  padding-top: 70px;
+  font-size: 24px;
+}
+
+input:focus, button:focus {outline:0;}
+
+input[type="text"] {
+  font-size: 20px;
+  margin: 20px 0;
+  padding: 7px 10px;
+  color: #555;
+  border: 2px solid #555;
+  background: #000;
+}
+
+input[type="text"]:focus {
+  color: #777;
+  border: 2px solid #777;
+}
+
+/* timerComp */
+.timerComp {
+  text-align: center;
+  margin: 80px auto;
+}
+.progress {
+    transform: rotate(-90deg);
+}
+
+.progress__value {
+    fill: none;
+}
+
+.progress__value {
+    stroke: #777;
+}
+
+/* answerChackerComp */
+.wrong-answers-count {
+  text-align: center;
+  margin: 80px auto;
+  font-size: 64px;
+  color: #555;
+}
+
+.correct-answers .unsolved {
+  color: #777;
+}
+
+.final {
+  text-align: center;
+  margin: 80px auto;
+  font-size: 24px;
+  color: #eee;
+}
+
+/* settingsComp */
+.settings-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 10px;
+}
+
+.settings-button span {
+  cursor: pointer;
+}
+
+.timer {
+  stroke: #444;
+}
+
+.timer--in {
+}
+
+.timer--out {
+}

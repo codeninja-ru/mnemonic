@@ -29,7 +29,9 @@ function $svet(updateFn) {
     };
     var newStore = () => {
         return  updateFn((value) => {
-            dispatch(value);
+            if (store != value) {
+                dispatch(value);
+            }
         });
     };
     var store = newStore();
@@ -52,7 +54,7 @@ function $svet(updateFn) {
         toString: function() {
             return this.value();
         },
-        filter: (fn) => {
+        filter: function (fn) {
             return $svet(update => {
                 //todo init value???
                 this.on(value => {
@@ -62,10 +64,19 @@ function $svet(updateFn) {
                 });
             });
         },
-        map: (fn) => {
+        map: function(fn) {
             return $svet(update => {
-                this.on(value => fn(value));
+                this.on(value => update(fn(value)));
                 return fn(this.value());
+            });
+        },
+        scan: function(fn) {
+            var result = this.value();
+            return $svet(update => {
+                this.on(value => {
+                    result = fn(value, result);
+                    update(result);
+                });
             });
         }
     };
@@ -73,32 +84,6 @@ function $svet(updateFn) {
 
 var RADIUS = 34;
 var CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-function dashTimer(secondsFn, direction = 1) {
-    return $svet((update) => {
-        var progress = (value) => {
-            var progress = value / 100;
-            var dashoffset = CIRCUMFERENCE * (1 - progress);
-            update(dashoffset);
-        }
-        var stepInt = secondsFn() * 1000 / 100;
-
-        var pr = direction == 1 ? 0 : 100;
-        progress(pr);
-        var stop = setInterval(() => {
-            if (direction == 1) {
-                progress(pr++);
-            } else {
-                progress(pr--);
-            }
-            if (pr > 100 || pr < 0) {
-                clearInterval(stop);
-            }
-        }, stepInt);
-
-        return 0;
-    });
-}
 
 function inState() {
     var skipZero = (fn) => {
@@ -112,18 +97,22 @@ function inState() {
     };
     var root = {
         name: 'in',
-        seconds: 5,
+        label: 'breath in',
+        seconds: 5000,
         next: skipZero(() => {
             return {
                 name: 'pause-in',
+                label: 'pause',
                 seconds: 0,
                 next: skipZero(() => {
                     return {
                         name: 'out',
-                        seconds: 5,
+                        label: 'breath out',
+                        seconds: 5000,
                         next: skipZero(() => {
                             return {
                                 name: 'pause-out',
+                                label: 'pause',
                                 seconds: 0,
                                 next: skipZero(() => root)
                             };
@@ -137,10 +126,10 @@ function inState() {
     return root;
 }
 
-class MyTimer extends HTMLElement {
+class MyBreath extends HTMLElement {
     constructor() {
         super();
-        this.seconds = 10;
+        this.timerWorking = true;
     }
 
     connectedCallback() {
@@ -148,74 +137,61 @@ class MyTimer extends HTMLElement {
     }
 
     disconnectedCallback() {
-        window.cancelAnimationFrame(this.frameId);
+        this.timerWorking = false;
     }
 
     render() {
-        var $frameAnimation = $svet(update => {
-            var tick = () => {
-                this.frameId = window.requestAnimationFrame(timestamp => {
-                    update(timestamp);
-                    tick();
-                });
-            };
-        });
-
         var $mode = $svet(update => {
             return inState(); // in, pause-in, out, pause-out
         });
-        var $dashOffset = dashTimer(() => $mode.value().seconds);
-        var $seconds = $svet((update) => {
-            var tick = (count) => {
-                if (count > 0) {
-                    setTimeout(() => update(tick(count - 1)), 1000);
-                }
-                return count;
-            };
-            return tick($mode.value().seconds);
-        });
-        $seconds.on(value => {
-            if (value == 0) {
-                $mode.set($mode.value().next());
-                setTimeout(() => {
-                    $seconds.reset();
-                    $dashOffset.reset();
+        var $timer = $svet(update => {
+            var tick = (ms) => {
+                update(ms);
+                var prev = Date.now();
+                window.requestAnimationFrame(() => {
+                    if (this.timerWorking) {
+                        tick(Date.now() - prev);
+                    }
                 });
+
+                return ms;
+            };
+
+            return tick(0);
+        })
+        .scan((value, result) => {
+            if ($mode.value().seconds < result) {
+                $mode.set($mode.value().next());
+                return value;
             }
+            return result + value;
         });
+        
+        var $dashOffset = $timer.map((value) => {
+            var progress = value / ($mode.value().seconds);
+            return Math.round(CIRCUMFERENCE * (1 - progress));
+        });
+
+
+        var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - value) / 1000));
+
 
         (function(elm) {
             elm.innerHTML = `<svg width="180" height="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
-            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="12" stroke="#eee" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)"></circle>
-            <text x="50%" y="50%" fill="#eee" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
-        </svg>`;
+            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="12" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
+            <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
+        </svg><div style="display: none">${$mode.value().label}</div>`;
             var e0 = getElm(elm, 0);
             var e1 = getElm(elm, 0, 1);
             $dashOffset.on((value) => chStyle(e1, 'stroke-dashoffset', value));
             var e2 = getElm(elm, 0, 3);
             $seconds.on((value) => chText(e2, value));
             $mode.on((value) => chAttr(e0, 'class', "timer timer--" + value.name));
+            var e3 = getElm(elm, 1);
+            $mode.on((value) => chText(e3, value.label));
         })(this);
 
     }
 }
 
-class MyBreath extends HTMLElement {
-    connectedCallback() {
-        this.render();
-    }
-
-    render() {
-        (function(elm) {
-            elm.innerHTML = `<my-timer seconds="10"></my-timer>`;
-
-            var e1 = getElm(elm, 0);
-            e1.addEventListener('finished', (e) => {
-                alert(1);
-            });
-        })(this);
-    }
-}
-
-customElements.define('my-timer', MyTimer);
 customElements.define('my-breath', MyBreath);

@@ -97,8 +97,8 @@ function inState() {
     };
     var root = {
         name: 'in',
-        label: 'breath in',
-        seconds: 5000,
+        label: 'breathe in',
+        seconds: 6000,
         next: skipZero(() => {
             return {
                 name: 'pause-in',
@@ -107,8 +107,8 @@ function inState() {
                 next: skipZero(() => {
                     return {
                         name: 'out',
-                        label: 'breath out',
-                        seconds: 5000,
+                        label: 'breathe out',
+                        seconds: 4000,
                         next: skipZero(() => {
                             return {
                                 name: 'pause-out',
@@ -177,17 +177,18 @@ class MyBreath extends HTMLElement {
 
 
         (function(elm) {
-            elm.innerHTML = `<svg width="180" height="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
-            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="12" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
+            elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
+            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
             <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
-        </svg><div style="display: none">${$mode.value().label}</div>`;
+            <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">${$mode.value().label}</text>
+        </svg>`;
             var e0 = getElm(elm, 0);
             var e1 = getElm(elm, 0, 1);
             $dashOffset.on((value) => chStyle(e1, 'stroke-dashoffset', value));
             var e2 = getElm(elm, 0, 3);
             $seconds.on((value) => chText(e2, value));
             $mode.on((value) => chAttr(e0, 'class', "timer timer--" + value.name));
-            var e3 = getElm(elm, 1);
+            var e3 = getElm(elm, 0, 5);
             $mode.on((value) => chText(e3, value.label));
         })(this);
 
@@ -195,3 +196,145 @@ class MyBreath extends HTMLElement {
 }
 
 customElements.define('my-breath', MyBreath);
+
+class SvgBreath extends HTMLElement {
+    constructor() {
+        super();
+        this.out = '5s';
+        this.in = '5s';
+    }
+
+    connectedCallback() {
+        this.render();
+    }
+
+    disconnectedCallback() {
+    }
+
+    render() {
+        var from = Math.round(CIRCUMFERENCE);
+        var to = 0;
+        this.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer">
+        <style>
+            .in {
+                fill: hsl(217, 62%, 62%);
+                stroke: hsl(217, 62%, 62%);
+            }
+            .out {
+                fill: hsl(0, 62%, 62%);
+                stroke: hsl(0, 62%, 62%);
+            }
+            .hidden {
+                display: none;
+            }
+        </style>
+        <g class="in">
+            <circle id="prog" cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:0; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
+            <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">
+                <tspan class="hidden">
+                5
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        begin="circ-in.begin + 0s; circ-out.begin + 0s"
+                        dur="1s"
+                        fill="remove"
+                    />
+                </tspan>
+                <tspan class="hidden">
+                4
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        begin="circ-in.begin + 1s; circ-out.begin + 1s"
+                        dur="1s"
+                        fill="remove"
+                    />
+                </tspan>
+                <tspan class="hidden">
+                3
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        begin="circ-in.begin + 2s; circ-out.begin + 2s"
+                        dur="1s"
+                        fill="remove"
+                    />
+                </tspan>
+                <tspan class="hidden">
+                2
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        begin="circ-in.begin + 3s; circ-out.begin + 3s"
+                        dur="1s"
+                        fill="remove"
+                    />
+                </tspan>
+                <tspan class="hidden">
+                1
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        begin="circ-in.begin + 4s; circ-out.begin + 4s"
+                        dur="1s"
+                        fill="remove"
+                    />
+                </tspan>
+            </text>
+            <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">
+                <tspan class="hidden">
+                    breathe in
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        dur="${this.in}"
+                        begin="circ-in.begin + 0s"
+                    />
+                </tspan>
+                <tspan class="hidden">
+                    breathe out
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        dur="${this.out}"
+                        begin="circ-out.begin + 0s"
+                    />
+                </tspan>
+            </text>
+            <set 
+                attributeName="class" 
+                to="out" 
+                begin="circ-out.begin + 0s"
+            />
+            <set 
+                attributeName="class" 
+                to="in" 
+                begin="circ-in.begin + 0s"
+            />
+        </g>
+        <animate xlink:href="#prog" 
+            attributeType="CSS"
+            attributeName="stroke-dashoffset"
+            from="${from}"
+            to="${to}"
+            dur="${this.in}"
+            begin="0s; circ-out.end + 0s"
+            fill="freeze"
+            id="circ-in"
+        />
+        <animate xlink:href="#prog" 
+            attributeType="CSS"
+            attributeName="stroke-dashoffset"
+            from="${from}"
+            to="${to}"
+            dur="${this.out}"
+            begin="circ-in.end + 0s"
+            fill="freeze"
+            id="circ-out"
+        />
+        </svg>`;
+    }
+}
+
+customElements.define('svg-breath', SvgBreath);

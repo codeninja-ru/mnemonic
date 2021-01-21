@@ -24,13 +24,13 @@ a, a:hover {
 .valign .box {
 }
 
-my-breath {
+my-breath, svg-breath {
   width: 70%;
   height: 70%;
   max-width: 500px;
 }
 
-my-breath svg {
+my-breath svg, svg-breath svg {
   width: 100%;
   height: 100%;
 }

@@ -200,8 +200,6 @@ customElements.define('my-breath', MyBreath);
 class SvgBreath extends HTMLElement {
     constructor() {
         super();
-        this.out = '5s';
-        this.in = '5s';
     }
 
     connectedCallback() {
@@ -214,6 +212,27 @@ class SvgBreath extends HTMLElement {
     render() {
         var from = Math.round(CIRCUMFERENCE);
         var to = 0;
+        var inTime = this.getAttribute('in') || '5s';
+        var outTime = this.getAttribute('out') || '5s';
+        var inInt = parseInt(inTime);
+        var outInt = parseInt(outTime);
+        var maxSeconds = Math.max(inInt, outInt);
+        var secondsHtml = [...Array(maxSeconds).keys()].map(i => {
+            var num = maxSeconds - i;
+            return `
+                <tspan class="hidden">
+                ${num}
+                    <set 
+                        attributeName="class" 
+                        to="active" 
+                        begin="${num <= inInt ? `circ-in.begin + ${inInt - num}s;`:''}${num <= outInt ? `circ-out.begin + ${outInt - num}s`:''}"
+                        dur="1s"
+                        fill="remove"
+                    />
+                </tspan>
+            `;
+        }).join("\n");
+        console.log(secondsHtml);
         this.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer">
         <style>
             .in {
@@ -231,56 +250,7 @@ class SvgBreath extends HTMLElement {
         <g class="in">
             <circle id="prog" cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:0; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
             <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">
-                <tspan class="hidden">
-                5
-                    <set 
-                        attributeName="class" 
-                        to="active" 
-                        begin="circ-in.begin + 0s; circ-out.begin + 0s"
-                        dur="1s"
-                        fill="remove"
-                    />
-                </tspan>
-                <tspan class="hidden">
-                4
-                    <set 
-                        attributeName="class" 
-                        to="active" 
-                        begin="circ-in.begin + 1s; circ-out.begin + 1s"
-                        dur="1s"
-                        fill="remove"
-                    />
-                </tspan>
-                <tspan class="hidden">
-                3
-                    <set 
-                        attributeName="class" 
-                        to="active" 
-                        begin="circ-in.begin + 2s; circ-out.begin + 2s"
-                        dur="1s"
-                        fill="remove"
-                    />
-                </tspan>
-                <tspan class="hidden">
-                2
-                    <set 
-                        attributeName="class" 
-                        to="active" 
-                        begin="circ-in.begin + 3s; circ-out.begin + 3s"
-                        dur="1s"
-                        fill="remove"
-                    />
-                </tspan>
-                <tspan class="hidden">
-                1
-                    <set 
-                        attributeName="class" 
-                        to="active" 
-                        begin="circ-in.begin + 4s; circ-out.begin + 4s"
-                        dur="1s"
-                        fill="remove"
-                    />
-                </tspan>
+                ${secondsHtml}
             </text>
             <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">
                 <tspan class="hidden">
@@ -288,7 +258,7 @@ class SvgBreath extends HTMLElement {
                     <set 
                         attributeName="class" 
                         to="active" 
-                        dur="${this.in}"
+                        dur="${inTime}"
                         begin="circ-in.begin + 0s"
                     />
                 </tspan>
@@ -297,7 +267,7 @@ class SvgBreath extends HTMLElement {
                     <set 
                         attributeName="class" 
                         to="active" 
-                        dur="${this.out}"
+                        dur="${outTime}"
                         begin="circ-out.begin + 0s"
                     />
                 </tspan>
@@ -318,7 +288,7 @@ class SvgBreath extends HTMLElement {
             attributeName="stroke-dashoffset"
             from="${from}"
             to="${to}"
-            dur="${this.in}"
+            dur="${inTime}"
             begin="0s; circ-out.end + 0s"
             fill="freeze"
             id="circ-in"
@@ -328,7 +298,7 @@ class SvgBreath extends HTMLElement {
             attributeName="stroke-dashoffset"
             from="${from}"
             to="${to}"
-            dur="${this.out}"
+            dur="${outTime}"
             begin="circ-in.end + 0s"
             fill="freeze"
             id="circ-out"

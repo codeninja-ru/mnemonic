@@ -32,6 +32,8 @@ function $svet(updateFn) {
             if (store != value) {
                 dispatch(value);
             }
+
+            return value;
         });
     };
     var store = newStore();
@@ -70,8 +72,11 @@ function $svet(updateFn) {
                 return fn(this.value());
             });
         },
-        scan: function(fn) {
+        scan: function(fn, initValue) {
             var result = this.value();
+            if (initValue) {
+                result = initValue;
+            }
             return $svet(update => {
                 this.on(value => {
                     result = fn(value, result);
@@ -85,7 +90,13 @@ function $svet(updateFn) {
 var RADIUS = 34;
 var CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-function inState() {
+function states(sIn, sPauseIn, sOut, sPauseOut) {
+    var progressInOut = (progress) => {
+        return Math.round(CIRCUMFERENCE * (1 - progress));
+    };
+    var progressPause = (progress) => {
+        return 0;
+    };
     var skipZero = (fn) => {
         return () => {
             var result = fn();
@@ -98,22 +109,30 @@ function inState() {
     var root = {
         name: 'in',
         label: 'breathe in',
-        seconds: 6000,
+        color: 'hsl(217, 62%, 62%)',
+        seconds: sIn,
+        calcDashOffset: progressInOut,
         next: skipZero(() => {
             return {
                 name: 'pause-in',
                 label: 'pause',
-                seconds: 0,
+                color: 'hsl(127, 62%, 62%)',
+                seconds: sPauseIn,
+                calcDashOffset: progressPause,
                 next: skipZero(() => {
                     return {
                         name: 'out',
                         label: 'breathe out',
-                        seconds: 4000,
+                        color: 'hsl(0, 62%, 62%)',
+                        seconds: sOut,
+                        calcDashOffset: progressInOut,
                         next: skipZero(() => {
                             return {
                                 name: 'pause-out',
                                 label: 'pause',
-                                seconds: 0,
+                                color: 'hsl(127, 62%, 62%)',
+                                seconds: sPauseOut,
+                                calcDashOffset: progressPause,
                                 next: skipZero(() => root)
                             };
                         })
@@ -134,30 +153,35 @@ class MyBreath extends HTMLElement {
 
     connectedCallback() {
         this.render();
+        var favicon = document.querySelector('link[rel="icon"]');
+        if (favicon && favicon.href) {
+            this.originalIcon = favicon.href;
+        }
     }
 
     disconnectedCallback() {
-        this.timerWorking = false;
+        if (this.timer) {
+            window.clearInterval(this.timer);
+        }
+        if (this.originalIcon) {
+            var icon = document.querySelector('link[rel="icon"]');
+            icon.href = this.originalIcon;
+        }
     }
 
     render() {
         var $mode = $svet(update => {
-            return inState(); // in, pause-in, out, pause-out
+            return states(this.getAttribute('in') * 1000, this.getAttribute('pause-in') * 1000, this.getAttribute('out') * 1000, this.getAttribute('pause-out') * 1000); // in, pause-in, out, pause-out
         });
         var $timer = $svet(update => {
-            var tick = (ms) => {
-                update(ms);
-                var prev = Date.now();
-                window.requestAnimationFrame(() => {
-                    if (this.timerWorking) {
-                        tick(Date.now() - prev);
-                    }
-                });
+            var prev = Date.now();
+            this.timer = window.setInterval(() => {
+                var now = Date.now();
+                update(now - prev);
+                prev = now;
+            }, 50);
 
-                return ms;
-            };
-
-            return tick(0);
+            return update(0);
         })
         .scan((value, result) => {
             if ($mode.value().seconds < result) {
@@ -166,22 +190,22 @@ class MyBreath extends HTMLElement {
             }
             return result + value;
         });
+
+        var $progress = $timer.map((value) => (value / ($mode.value().seconds) % 1));
         
-        var $dashOffset = $timer.map((value) => {
-            var progress = value / ($mode.value().seconds);
-            return Math.round(CIRCUMFERENCE * (1 - progress));
+        var $dashOffset = $progress.map((progress) => {
+            return $mode.value().calcDashOffset(progress);
         });
 
-
-        var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - value) / 1000));
-
+        var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - (value % $mode.value().seconds)) / 1000));
 
         (function(elm) {
             elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
             <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
             <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
             <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">${$mode.value().label}</text>
-        </svg>`;
+        </svg>
+        <canvas width="32" height="32" hidden></canvas>`;
             var e0 = getElm(elm, 0);
             var e1 = getElm(elm, 0, 1);
             $dashOffset.on((value) => chStyle(e1, 'stroke-dashoffset', value));
@@ -192,6 +216,53 @@ class MyBreath extends HTMLElement {
             $mode.on((value) => chText(e3, value.label));
         })(this);
 
+        var icon = document.querySelector('link[rel="icon"]');
+        if (icon) {
+            this.querySelectorAll('canvas').forEach((canvas) => {
+                var updateIconFn = () => {
+                    icon.href = canvas.toDataURL('image/png');
+                };
+                var inColor = $mode.value().color;
+                var ctx = canvas.getContext('2d');
+                //ctx.imageSmoothingEnabled = false;
+                ctx.fillStyle = inColor;
+                ctx.strokeStyle = inColor;
+
+                ctx.font = '20px monospace';
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'center';
+                ctx.lineWidth = 4;
+
+                $mode.on(value => {
+                    ctx.strokeStyle = value.color;
+                    ctx.fillStyle = value.color;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillText(Math.ceil(value.seconds / 1000), 15, 15);
+                });
+
+                $progress.scan((value, prev) => {
+                    var seconds = Math.ceil($mode.value().seconds * (1 - value) / 1000);
+
+                    ctx.beginPath();
+                    if (seconds != prev) {
+                        // redraw seconds
+                        ctx.strokeStyle = $mode.value().color;
+                        ctx.fillStyle = $mode.value().color;
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillText(seconds, 15, 15);
+                    }
+                    ctx.arc(15, 15, 11, 0.5 * Math.PI, 0.5 * Math.PI + 2 * value * Math.PI);
+                    ctx.stroke();
+
+                    return seconds;
+                }, 0);
+
+
+                $progress.on(updateIconFn);
+            });
+
+            
+        }
     }
 }
 
@@ -232,7 +303,6 @@ class SvgBreath extends HTMLElement {
                 </tspan>
             `;
         }).join("\n");
-        console.log(secondsHtml);
         this.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer">
         <style>
             .in {
@@ -286,8 +356,10 @@ class SvgBreath extends HTMLElement {
         <animate xlink:href="#prog" 
             attributeType="CSS"
             attributeName="stroke-dashoffset"
+            by="5"
             from="${from}"
             to="${to}"
+            calcMode="paced"
             dur="${inTime}"
             begin="0s; circ-out.end + 0s"
             fill="freeze"
@@ -297,7 +369,9 @@ class SvgBreath extends HTMLElement {
             attributeType="CSS"
             attributeName="stroke-dashoffset"
             from="${from}"
+            by="5"
             to="${to}"
+            calcMode="paced"
             dur="${outTime}"
             begin="circ-in.end + 0s"
             fill="freeze"
@@ -308,3 +382,56 @@ class SvgBreath extends HTMLElement {
 }
 
 customElements.define('svg-breath', SvgBreath);
+
+function html2elm(html) {
+    var tmpl = document.createElement('template');
+    tmpl.innerHTML = html;
+    return tmpl.content.cloneNode(true);
+}
+
+function $fromEvent(elm, eventName) {
+    return $svet(update => {
+        elm.addEventListener(eventName, e => update(e));
+    });
+}
+
+var $in = $svet(() => 5);
+var $pauseIn = $svet(() => 0);
+var $out = $svet(() => 5);
+var $pauseOut = $svet(() => 0);
+(function(root) {
+    var e1 = getElm(root, 1, 1, 2); // in(s)
+    var e2 = getElm(root, 1, 3, 2); // pause-in(s)
+    var e3 = getElm(root, 1, 5, 2); // out(s)
+    var e4 = getElm(root, 1, 7, 2); // pause-out(s)
+    var e5 = getElm(root, 1, 9); // button
+
+    $in.on(value => chAttr(e1, 'value', value));
+    $pauseIn.on(value => chAttr(e2, 'value', value));
+    $out.on(value => chAttr(e3, 'value', value));
+    $pauseOut.on(value => chAttr(e4, value));
+
+    $fromEvent(e1, 'change').on(e => $in.set(parseInt(e.target.value)));
+    $fromEvent(e2, 'change').on(e => $pauseIn.set(parseInt(e.target.value)));
+    $fromEvent(e3, 'change').on(e => $out.set(parseInt(e.target.value)));
+    $fromEvent(e4, 'change').on(e => $pauseOut.set(parseInt(e.target.value)));
+
+    e5.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        var comp = getElm(root, 3);
+        var me = e.target;
+        if (me.datasetStarted) {
+            me.textContent = 'Start!';
+            me.datasetStarted = false;
+            newComp = document.createTextNode('');
+            root.replaceChild(newComp, comp);
+        } else {
+            me.textContent = 'Stop!';
+            me.datasetStarted = true;
+            newComp = html2elm(`<my-breath class="box" in=${$in} pause-in=${$pauseIn} out=${$out} pause-out=${$pauseOut}></my-breath>`);
+            root.replaceChild(newComp, comp);
+        }
+    });
+
+})(document.getElementById('breathApp'));

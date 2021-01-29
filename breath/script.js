@@ -8,7 +8,11 @@ function getElm(elm, ...idxs) {
 }
 
 function chAttr(elm, name, value) {
-    elm.setAttribute(name, value);
+    if (name == 'value') {
+        elm.value = value;
+    } else {
+        elm.setAttribute(name, value);
+    }
 }
 
 function chStyle(elm, name, value) {
@@ -82,6 +86,8 @@ function $svet(updateFn) {
                     result = fn(value, result);
                     update(result);
                 });
+
+                return result;
             });
         }
     };
@@ -95,7 +101,7 @@ function states(sIn, sPauseIn, sOut, sPauseOut) {
         return Math.round(CIRCUMFERENCE * (1 - progress));
     };
     var progressPause = (progress) => {
-        return 0;
+        return Math.floor(CIRCUMFERENCE);
     };
     var skipZero = (fn) => {
         return () => {
@@ -198,6 +204,42 @@ class MyBreath extends HTMLElement {
         });
 
         var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - (value % $mode.value().seconds)) / 1000));
+
+        //(function() {
+        //    var render = (elm, params) => {
+        //        elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
+        //    <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
+        //    <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
+        //    <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">${$mode.value().label}</text>
+        //</svg>
+        //<canvas width="32" height="32" hidden></canvas>`;
+        //    };
+        //    var attach = (elm, params) => {
+        //        var dettach = [];
+        //        var e0 = getElm(elm, 0);
+        //        var e1 = getElm(elm, 0, 1);
+        //        detach.push($dashOffset.on((value) => chStyle(e1, 'stroke-dashoffset', value)));
+        //        var e2 = getElm(elm, 0, 3);
+        //        detach.push($seconds.on((value) => chText(e2, value)));
+        //        detach.push($mode.on((value) => chAttr(e0, 'class', "timer timer--" + value.name)));
+        //        var e3 = getElm(elm, 0, 5);
+        //        detach.push($mode.on((value) => chText(e3, value.label)));
+
+        //        return () => {
+        //            dettach.forEach(fn => fn());
+        //        };
+        //    };
+
+        //    return {
+        //        render: (elm, params) => {
+        //            render(elm, params);
+        //            return attach(elm, parmas);
+        //        },
+        //        hydrate: (elm, params) => {
+        //            return attach(elm, parmas);
+        //        }
+        //    };
+        //})().render(elm, []);
 
         (function(elm) {
             elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
@@ -399,7 +441,9 @@ var $in = $svet(() => 5);
 var $pauseIn = $svet(() => 0);
 var $out = $svet(() => 5);
 var $pauseOut = $svet(() => 0);
+var $buttonState = $svet(() => false);
 (function(root) {
+    var e0 = getElm(root, 1); // form
     var e1 = getElm(root, 1, 1, 2); // in(s)
     var e2 = getElm(root, 1, 3, 2); // pause-in(s)
     var e3 = getElm(root, 1, 5, 2); // out(s)
@@ -410,28 +454,25 @@ var $pauseOut = $svet(() => 0);
     $pauseIn.on(value => chAttr(e2, 'value', value));
     $out.on(value => chAttr(e3, 'value', value));
     $pauseOut.on(value => chAttr(e4, value));
+    $buttonState.map(value => value ? 'Stop!' : 'Start!').on(value => chText(e5, value));
+    $buttonState.on(value => {
+        var comp = getElm(root, 3); // place for my-breath component
+        if (value) {
+            newComp = html2elm(`<my-breath class="box" in=${$in} pause-in=${$pauseIn} out=${$out} pause-out=${$pauseOut}></my-breath>`);
+            root.replaceChild(newComp, comp);
+        } else {
+            root.replaceChild(newComp, comp);
+            newComp = document.createTextNode('');
+        }
+    });
 
     $fromEvent(e1, 'change').on(e => $in.set(parseInt(e.target.value)));
     $fromEvent(e2, 'change').on(e => $pauseIn.set(parseInt(e.target.value)));
     $fromEvent(e3, 'change').on(e => $out.set(parseInt(e.target.value)));
     $fromEvent(e4, 'change').on(e => $pauseOut.set(parseInt(e.target.value)));
-
-    e5.addEventListener('click', function(e) {
+    $fromEvent(e0, 'submit').on(e => {
         e.preventDefault();
-
-        var comp = getElm(root, 3);
-        var me = e.target;
-        if (me.datasetStarted) {
-            me.textContent = 'Start!';
-            me.datasetStarted = false;
-            newComp = document.createTextNode('');
-            root.replaceChild(newComp, comp);
-        } else {
-            me.textContent = 'Stop!';
-            me.datasetStarted = true;
-            newComp = html2elm(`<my-breath class="box" in=${$in} pause-in=${$pauseIn} out=${$out} pause-out=${$pauseOut}></my-breath>`);
-            root.replaceChild(newComp, comp);
-        }
+        $buttonState.set(!$buttonState.value());
     });
 
 })(document.getElementById('breathApp'));

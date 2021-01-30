@@ -32,7 +32,7 @@ function $svet(updateFn) {
         });
     };
     var newStore = () => {
-        return  updateFn((value) => {
+        return updateFn((value) => {
             if (store != value) {
                 dispatch(value);
             }
@@ -176,6 +176,7 @@ class MyBreath extends HTMLElement {
     }
 
     render() {
+        const STEP = 30;
         var $mode = $svet(update => {
             return states(this.getAttribute('in') * 1000, this.getAttribute('pause-in') * 1000, this.getAttribute('out') * 1000, this.getAttribute('pause-out') * 1000); // in, pause-in, out, pause-out
         });
@@ -185,16 +186,17 @@ class MyBreath extends HTMLElement {
                 var now = Date.now();
                 update(now - prev);
                 prev = now;
-            }, 50);
+            }, STEP);
 
             return update(0);
         })
         .scan((value, result) => {
-            if ($mode.value().seconds < result) {
+            var sum = result + value;
+            if ($mode.value().seconds <= sum) {
                 $mode.set($mode.value().next());
                 return value;
             }
-            return result + value;
+            return sum;
         });
 
         var $progress = $timer.map((value) => (value / ($mode.value().seconds) % 1));
@@ -205,45 +207,9 @@ class MyBreath extends HTMLElement {
 
         var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - (value % $mode.value().seconds)) / 1000));
 
-        //(function() {
-        //    var render = (elm, params) => {
-        //        elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
-        //    <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
-        //    <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
-        //    <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">${$mode.value().label}</text>
-        //</svg>
-        //<canvas width="32" height="32" hidden></canvas>`;
-        //    };
-        //    var attach = (elm, params) => {
-        //        var dettach = [];
-        //        var e0 = getElm(elm, 0);
-        //        var e1 = getElm(elm, 0, 1);
-        //        detach.push($dashOffset.on((value) => chStyle(e1, 'stroke-dashoffset', value)));
-        //        var e2 = getElm(elm, 0, 3);
-        //        detach.push($seconds.on((value) => chText(e2, value)));
-        //        detach.push($mode.on((value) => chAttr(e0, 'class', "timer timer--" + value.name)));
-        //        var e3 = getElm(elm, 0, 5);
-        //        detach.push($mode.on((value) => chText(e3, value.label)));
-
-        //        return () => {
-        //            dettach.forEach(fn => fn());
-        //        };
-        //    };
-
-        //    return {
-        //        render: (elm, params) => {
-        //            render(elm, params);
-        //            return attach(elm, parmas);
-        //        },
-        //        hydrate: (elm, params) => {
-        //            return attach(elm, parmas);
-        //        }
-        //    };
-        //})().render(elm, []);
-
         (function(elm) {
             elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
-            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%)" fill="transparent"></circle>
+            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%);" fill="transparent"></circle>
             <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
             <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">${$mode.value().label}</text>
         </svg>
@@ -275,21 +241,15 @@ class MyBreath extends HTMLElement {
                 ctx.textAlign = 'center';
                 ctx.lineWidth = 4;
 
-                $mode.on(value => {
-                    ctx.strokeStyle = value.color;
-                    ctx.fillStyle = value.color;
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillText(Math.ceil(value.seconds / 1000), 15, 15);
-                });
-
                 $progress.scan((value, prev) => {
                     var seconds = Math.ceil($mode.value().seconds * (1 - value) / 1000);
+                    var inColor = $mode.value().color;
+                    ctx.fillStyle = inColor;
+                    ctx.strokeStyle = inColor;
 
                     ctx.beginPath();
                     if (seconds != prev) {
                         // redraw seconds
-                        ctx.strokeStyle = $mode.value().color;
-                        ctx.fillStyle = $mode.value().color;
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         ctx.fillText(seconds, 15, 15);
                     }
@@ -297,10 +257,8 @@ class MyBreath extends HTMLElement {
                     ctx.stroke();
 
                     return seconds;
-                }, 0);
-
-
-                $progress.on(updateIconFn);
+                }, 0)
+                .on(updateIconFn);
             });
 
             

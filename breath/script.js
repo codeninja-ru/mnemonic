@@ -228,7 +228,9 @@ class MyBreath extends HTMLElement {
         if (icon) {
             this.querySelectorAll('canvas').forEach((canvas) => {
                 var updateIconFn = () => {
-                    icon.href = canvas.toDataURL('image/png');
+                    if (document.hidden) {
+                        icon.href = canvas.toDataURL('image/png');
+                    }
                 };
                 var inColor = $mode.value().color;
                 var ctx = canvas.getContext('2d');
@@ -244,10 +246,10 @@ class MyBreath extends HTMLElement {
                 $progress.scan((value, prev) => {
                     var seconds = Math.ceil($mode.value().seconds * (1 - value) / 1000);
                     var inColor = $mode.value().color;
+                    ctx.beginPath();
                     ctx.fillStyle = inColor;
                     ctx.strokeStyle = inColor;
 
-                    ctx.beginPath();
                     if (seconds != prev) {
                         // redraw seconds
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -386,7 +388,11 @@ customElements.define('svg-breath', SvgBreath);
 function html2elm(html) {
     var tmpl = document.createElement('template');
     tmpl.innerHTML = html;
-    return tmpl.content.cloneNode(true);
+    if (tmpl.content.childNodes[0]) {
+        return tmpl.content.cloneNode(true).childNodes[0];
+    } else {
+        return document.createTextNode('');
+    }
 }
 
 function $fromEvent(elm, eventName) {
@@ -407,6 +413,7 @@ var $buttonState = $svet(() => false);
     var e3 = getElm(root, 1, 5, 2); // out(s)
     var e4 = getElm(root, 1, 7, 2); // pause-out(s)
     var e5 = getElm(root, 1, 9); // button
+    var comp = getElm(root, 3); // place for my-breath component
 
     $in.on(value => chAttr(e1, 'value', value));
     $pauseIn.on(value => chAttr(e2, 'value', value));
@@ -414,13 +421,14 @@ var $buttonState = $svet(() => false);
     $pauseOut.on(value => chAttr(e4, value));
     $buttonState.map(value => value ? 'Stop!' : 'Start!').on(value => chText(e5, value));
     $buttonState.on(value => {
-        var comp = getElm(root, 3); // place for my-breath component
         if (value) {
-            newComp = html2elm(`<my-breath class="box" in=${$in} pause-in=${$pauseIn} out=${$out} pause-out=${$pauseOut}></my-breath>`);
+            let newComp = html2elm(`<my-breath class="box" in=${$in} pause-in=${$pauseIn} out=${$out} pause-out=${$pauseOut}></my-breath>`);
             root.replaceChild(newComp, comp);
+            comp = newComp;
         } else {
+            let newComp = html2elm('<!--my-breah></my-breath-->');
             root.replaceChild(newComp, comp);
-            newComp = document.createTextNode('');
+            comp = newComp;
         }
     });
 

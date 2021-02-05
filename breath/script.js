@@ -151,6 +151,47 @@ function states(sIn, sPauseIn, sOut, sPauseOut) {
     return root;
 }
 
+function makeFrameTimer() {
+    var handler;
+    var timer = $svet(update => {
+        var loop = (prev) => {
+            handler = window.requestAnimationFrame((timestamp) => {
+                timestamp = performance.now();
+                update(timestamp - prev);
+                loop(timestamp);
+            });
+        };
+        loop(performance.now());
+        return update(0);
+    });
+
+    timer.destroy = function() {
+        window.cancelAnimationFrame(handler);
+    };
+
+    return timer;
+}
+
+function makeIntervalTimer() {
+    var handler;
+    var timer = $svet(update => {
+        var prev = Date.now();
+        handler = window.setInterval(() => {
+            var now = Date.now();
+            update(now - prev);
+            prev = now;
+        }, STEP);
+
+        return update(0);
+    });
+
+    timer.destory = function() {
+        window.clearInterval(handler);
+    };
+
+    return timer;
+}
+
 class MyBreath extends HTMLElement {
     constructor() {
         super();
@@ -166,9 +207,7 @@ class MyBreath extends HTMLElement {
     }
 
     disconnectedCallback() {
-        if (this.timer) {
-            window.clearInterval(this.timer);
-        }
+        this.$timer.destroy();
         if (this.originalIcon) {
             var icon = document.querySelector('link[rel="icon"]');
             icon.href = this.originalIcon;
@@ -180,17 +219,10 @@ class MyBreath extends HTMLElement {
         var $mode = $svet(update => {
             return states(this.getAttribute('in') * 1000, this.getAttribute('pause-in') * 1000, this.getAttribute('out') * 1000, this.getAttribute('pause-out') * 1000); // in, pause-in, out, pause-out
         });
-        var $timer = $svet(update => {
-            var prev = Date.now();
-            this.timer = window.setInterval(() => {
-                var now = Date.now();
-                update(now - prev);
-                prev = now;
-            }, STEP);
 
-            return update(0);
-        })
-        .scan((value, result) => {
+        this.$timer = makeFrameTimer();
+
+        var $timer = this.$timer.scan((value, result) => {
             var sum = result + value;
             if ($mode.value().seconds <= sum) {
                 $mode.set($mode.value().next());
@@ -258,9 +290,11 @@ class MyBreath extends HTMLElement {
                     ctx.arc(15, 15, 11, 0.5 * Math.PI, 0.5 * Math.PI + 2 * value * Math.PI);
                     ctx.stroke();
 
+                    updateIconFn();
+
                     return seconds;
-                }, 0)
-                .on(updateIconFn);
+                }, 0);
+                //.on(updateIconFn);
             });
 
             

@@ -129,15 +129,14 @@ function connectNoises() {
         brownGain.gain.value = this.value;
     });
 
+    audioContext().suspend();
+
+    return audioContext();
 }
 
-document.getElementById('start-btn').addEventListener("click", function(event) {
-    event.preventDefault();
-    connectNoises();
-    this.setAttribute('disabled', 'disabled');
-});
+function BackgroundNoise() {
+    var canvas = document.querySelector('.noise canvas');
 
-document.querySelectorAll('.noise canvas').forEach(canvas => {
     const FRAME_COUNT = 10;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -161,21 +160,49 @@ document.querySelectorAll('.noise canvas').forEach(canvas => {
 
     var frames = makeFrames();
 
-    var i = 0;
-    window.setInterval(() => {
-        if (!document.hidden) {
-            if (i >= frames.length) {
-                i = 0;
-            }
-            if (frames[i]) {
-                ctx.putImageData(frames[i], 0, 0);
-            }
-            i++;
-        }
-    }, 100);
-
     window.addEventListener("resize", function(event) {
         frames = makeFrames();
     });
-    
+
+    var timerHandler;
+    this.resume = function() {
+        var i = 0;
+        timerHandler = window.setInterval(() => {
+            if (!document.hidden) {
+                if (i >= frames.length) {
+                    i = 0;
+                }
+                if (frames[i]) {
+                    ctx.putImageData(frames[i], 0, 0);
+                }
+                i++;
+            }
+        }, 100);
+        canvas.style.display = 'block';
+    };
+
+
+    this.suspend = function() {
+        if (timerHandler) {
+            window.clearInterval(timerHandler);
+        }
+        canvas.style.display = 'none';
+    };
+
+
+}
+
+const audio = connectNoises();
+const bgNoise = new BackgroundNoise();
+
+document.getElementById('start-btn').addEventListener("click", function(event) {
+    if (audio.state == 'suspended') {
+        audio.resume();
+        bgNoise.resume();
+        this.textContent = 'Stop!';
+    } else {
+        audio.suspend();
+        bgNoise.suspend();
+        this.textContent = 'Start!';
+    }
 });

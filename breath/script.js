@@ -173,6 +173,7 @@ function makeFrameTimer() {
 }
 
 function makeIntervalTimer() {
+    const STEP = 30;
     var handler;
     var timer = $svet(update => {
         var prev = Date.now();
@@ -185,7 +186,7 @@ function makeIntervalTimer() {
         return update(0);
     });
 
-    timer.destory = function() {
+    timer.destroy = function() {
         window.clearInterval(handler);
     };
 
@@ -215,12 +216,11 @@ class MyBreath extends HTMLElement {
     }
 
     render() {
-        const STEP = 30;
         var $mode = $svet(update => {
             return states(this.getAttribute('in') * 1000, this.getAttribute('pause-in') * 1000, this.getAttribute('out') * 1000, this.getAttribute('pause-out') * 1000); // in, pause-in, out, pause-out
         });
 
-        this.$timer = makeFrameTimer();
+        this.$timer = makeFrameTimer();//makeIntervalTimer();
 
         var $timer = this.$timer.scan((value, result) => {
             var sum = result + value;
@@ -233,9 +233,11 @@ class MyBreath extends HTMLElement {
 
         var $progress = $timer.map((value) => (value / ($mode.value().seconds) % 1));
         
-        var $dashOffset = $progress.map((progress) => {
-            return $mode.value().calcDashOffset(progress);
-        });
+        var $dashOffset = $progress
+            .filter(() => !document.hidden)
+            .map((progress) => {
+                return $mode.value().calcDashOffset(progress);
+            });
 
         var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - (value % $mode.value().seconds)) / 1000));
 
@@ -256,49 +258,45 @@ class MyBreath extends HTMLElement {
             $mode.on((value) => chText(e3, value.label));
         })(this);
 
-        var icon = document.querySelector('link[rel="icon"]');
-        if (icon) {
-            this.querySelectorAll('canvas').forEach((canvas) => {
-                var updateIconFn = () => {
-                    if (document.hidden) {
-                        icon.href = canvas.toDataURL('image/png');
-                    }
-                };
-                var inColor = $mode.value().color;
-                var ctx = canvas.getContext('2d');
-                //ctx.imageSmoothingEnabled = false;
-                ctx.fillStyle = inColor;
-                ctx.strokeStyle = inColor;
+        //var icon = document.querySelector('link[rel="icon"]');
+        //if (icon) {
+        //    this.querySelectorAll('canvas').forEach((canvas) => {
+        //        var inColor = $mode.value().color;
+        //        var ctx = canvas.getContext('2d');
+        //        ctx.imageSmoothingEnabled = false;
+        //        ctx.fillStyle = inColor;
+        //        ctx.strokeStyle = inColor;
 
-                ctx.font = '20px monospace';
-                ctx.textBaseline = 'middle';
-                ctx.textAlign = 'center';
-                ctx.lineWidth = 4;
+        //        ctx.font = '20px monospace';
+        //        ctx.textBaseline = 'middle';
+        //        ctx.textAlign = 'center';
+        //        ctx.lineWidth = 4;
 
-                $progress.scan((value, prev) => {
-                    var seconds = Math.ceil($mode.value().seconds * (1 - value) / 1000);
-                    var inColor = $mode.value().color;
-                    ctx.beginPath();
-                    ctx.fillStyle = inColor;
-                    ctx.strokeStyle = inColor;
+        //        $progress
+        //            .filter(() => document.hidden)
+        //            .scan((value, prev) => {
+        //                var seconds = Math.ceil($mode.value().seconds * (1 - value) / 1000);
+        //                var inColor = $mode.value().color;
+        //                ctx.beginPath();
+        //                ctx.fillStyle = inColor;
+        //                ctx.strokeStyle = inColor;
 
-                    if (seconds != prev) {
-                        // redraw seconds
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillText(seconds, 15, 15);
-                    }
-                    ctx.arc(15, 15, 11, 0.5 * Math.PI, 0.5 * Math.PI + 2 * value * Math.PI);
-                    ctx.stroke();
+        //                if (seconds != prev) {
+        //                    // redraw seconds
+        //                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //                    ctx.fillText(seconds, 15, 15);
+        //                }
+        //                ctx.arc(15, 15, 11, 0.5 * Math.PI, 0.5 * Math.PI + 2 * value * Math.PI);
+        //                ctx.stroke();
 
-                    updateIconFn();
+        //                icon.href = canvas.toDataURL('image/png');
 
-                    return seconds;
-                }, 0);
-                //.on(updateIconFn);
-            });
+        //                return value;
+        //            }, 0);
+        //    });
 
-            
-        }
+        //    
+        //}
     }
 }
 

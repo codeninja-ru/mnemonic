@@ -161,6 +161,8 @@ function BackgroundNoise() {
     var frames = makeFrames();
 
     window.addEventListener("resize", function(event) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
         frames = makeFrames();
     });
 

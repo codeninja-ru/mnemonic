@@ -14,20 +14,17 @@ a, a:hover {
   color: #666;
 }
 
-.valign {
+.grid {
   display: grid;
-  place-items: center;
-  height: 100%;
-  overflow: hidden;
-}
-
-.valign .box {
+  grid-template-rows: auto 100%;
+  justify-items: center;
 }
 
 my-breath, svg-breath {
   width: 70%;
   height: 70%;
   max-width: 500px;
+  align-self: center;
 }
 
 my-breath svg, svg-breath svg {

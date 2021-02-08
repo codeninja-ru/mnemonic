@@ -23,22 +23,25 @@
 </head>
 
 <body>
-  <button id="start-btn">start</button>
+    <div class="grid">
+        <button id="start-btn">start</button>
 
-  <label for="whiteVolume">
-      White Noise
-      <input type="range" id="whiteVolume" min="0" max="0.7" value="0" step="0.01">
-  </label>
+        <label for="whiteVolume">
+            White Noise
+            <input type="range" id="whiteVolume" min="0" max="0.7" value="0" step="0.01">
+        </label>
 
-  <label for="pinkVolume">
-      Pink Noise
-      <input type="range" id="pinkVolume" min="0" max="0.7" value="0" step="0.01">
-  </label>
+        <label for="pinkVolume">
+            Pink Noise
+            <input type="range" id="pinkVolume" min="0" max="0.7" value="0" step="0.01">
+        </label>
 
-  <label for="brownVolume">
-      Brown Noise
-      <input type="range" id="brownVolume" min="0" max="0.7" value="0" step="0.01">
-  </label>
+        <label for="brownVolume">
+            Brown Noise
+            <input type="range" id="brownVolume" min="0" max="0.7" value="0" step="0.01">
+        </label>
+
+    </div>
 
   <div class="noise">
       <canvas></canvas>

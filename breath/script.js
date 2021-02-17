@@ -112,11 +112,25 @@ function states(sIn, sPauseIn, sOut, sPauseOut) {
             return result;
         };
     };
+    var makePlaySoundFn = (freq) => {
+        return function(sec) {
+            let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = audioContext.createOscillator();
+            osc.frequency.value = freq + sec * 20;
+            osc.type = 'sine';
+            var gain = audioContext.createGain();
+            gain.gain.value = 0.3;
+            osc.connect(gain).connect(audioContext.destination);
+            osc.start();
+            osc.stop(audioContext.currentTime + 0.1);
+        };
+    };
     var root = {
         name: 'in',
         label: 'breathe in',
         color: 'hsl(217, 62%, 62%)',
         seconds: sIn,
+        play: makePlaySoundFn(430.65),
         calcDashOffset: progressInOut,
         next: skipZero(() => {
             return {
@@ -124,6 +138,7 @@ function states(sIn, sPauseIn, sOut, sPauseOut) {
                 label: 'pause',
                 color: 'hsl(127, 62%, 62%)',
                 seconds: sPauseIn,
+                play: () => {},
                 calcDashOffset: progressPause,
                 next: skipZero(() => {
                     return {
@@ -131,6 +146,7 @@ function states(sIn, sPauseIn, sOut, sPauseOut) {
                         label: 'breathe out',
                         color: 'hsl(0, 62%, 62%)',
                         seconds: sOut,
+                        play: makePlaySoundFn(100),
                         calcDashOffset: progressInOut,
                         next: skipZero(() => {
                             return {
@@ -138,6 +154,7 @@ function states(sIn, sPauseIn, sOut, sPauseOut) {
                                 label: 'pause',
                                 color: 'hsl(127, 62%, 62%)',
                                 seconds: sPauseOut,
+                                play: () => {},
                                 calcDashOffset: progressPause,
                                 next: skipZero(() => root)
                             };
@@ -240,10 +257,11 @@ class MyBreath extends HTMLElement {
             });
 
         var $seconds = $timer.map(value => Math.ceil(($mode.value().seconds - (value % $mode.value().seconds)) / 1000));
+        $seconds.on((sec) => $mode.value().play(sec));
 
         (function(elm) {
             elm.innerHTML = `<svg width="180" viewBox="0 0 80 80" class="timer ${"timer--" + $mode.value().name}">
-            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${CIRCUMFERENCE}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%);" fill="transparent"></circle>
+            <circle cx="50%" cy="50%" r="${RADIUS}" stroke-width="10" style="stroke-dasharray: ${Math.floor(CIRCUMFERENCE)}; stroke-dashoffset:${$dashOffset}; transform: rotate(90deg) translate(0%, -100%);" fill="transparent"></circle>
             <text x="50%" y="50%" font-size="40px" text-anchor="middle" dy=".3em">${$seconds}</text>
             <text x="50%" y="60" font-size="4px" text-anchor="middle" stroke-width="2px" stroke="none">${$mode.value().label}</text>
         </svg>
@@ -433,11 +451,30 @@ function $fromEvent(elm, eventName) {
     });
 }
 
-var $in = $svet(() => 5);
-var $pauseIn = $svet(() => 0);
-var $out = $svet(() => 5);
-var $pauseOut = $svet(() => 0);
+function parseUrlHash() {
+    var d = window.location.hash.substr(1).split(':').map(v => parseInt(v));
+    return {
+        in: d[0] || 5,
+        pauseIn: d[1] || 0,
+        out: d[2] || 5,
+        pauseOut: d[3] || 0,
+    };
+}
+
+const initSettings = parseUrlHash();
+var $in = $svet(() => initSettings.in);
+var $pauseIn = $svet(() => initSettings.pauseIn);
+var $out = $svet(() => initSettings.out);
+var $pauseOut = $svet(() => initSettings.pauseOut);
 var $buttonState = $svet(() => false);
+
+function updateUrlHash() {
+    window.location.hash = `${$in}:${$pauseIn}:${$out}:${$pauseOut}`;
+}
+$in.on(updateUrlHash);
+$pauseIn.on(updateUrlHash);
+$out.on(updateUrlHash);
+$pauseOut.on(updateUrlHash);
 (function(root) {
     var e0 = getElm(root, 1); // form
     var e1 = getElm(root, 1, 1, 2); // in(s)
@@ -447,10 +484,17 @@ var $buttonState = $svet(() => false);
     var e5 = getElm(root, 1, 9); // button
     var comp = getElm(root, 3); // place for my-breath component
 
+    // init values
+    chAttr(e1, 'value', $in);
+    chAttr(e2, 'value', $pauseIn);
+    chAttr(e3, 'value', $out);
+    chAttr(e4, 'value', $pauseOut);
+
+    // bind actions
     $in.on(value => chAttr(e1, 'value', value));
     $pauseIn.on(value => chAttr(e2, 'value', value));
     $out.on(value => chAttr(e3, 'value', value));
-    $pauseOut.on(value => chAttr(e4, value));
+    $pauseOut.on(value => chAttr(e4, 'value', value));
     $buttonState.map(value => value ? 'Stop!' : 'Start!').on(value => chText(e5, value));
     $buttonState.on(value => {
         if (value) {
